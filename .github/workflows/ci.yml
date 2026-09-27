@@ -1,0 +1,44 @@
+name: Beyond Human Kitchen CI
+on: [push, pull_request]
+
+jobs:
+  catalogue:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python scripts/verify_catalogue.py data/recipes_424.json
+      - run: python - <<'PY'
+import json
+a=json.load(open('data/recipes_424.json'))
+b=json.load(open('android/app/src/main/assets/recipes_424.json'))
+assert a == b
+assert all('_section' in r for r in a['recipes'])
+print('CATALOGUE EMBED + SECTION MATCH PASS')
+PY
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install -r backend/requirements.txt pytest
+      - run: pytest -q backend/tests
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - run: gradle lintDebug testDebugUnitTest assembleDebug
+        working-directory: android
