@@ -14,7 +14,4 @@ Production-oriented Android + backend rebuild using the supplied 424-recipe cook
 
 The supplied cookbook remains the content source of truth. Questionable or generic source records are flagged, not silently rewritten.
 
-## Current verification
-Local backend: PASS — 6 tests.
-Catalogue invariant: PASS — 424/424.
-Android compilation: UNVERIFIED locally because the current build environment has no Gradle executable; CI is required for this gate.
+CI workflow corrected after YAML validation audit.
