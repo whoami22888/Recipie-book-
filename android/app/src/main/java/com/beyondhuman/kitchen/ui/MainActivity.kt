@@ -151,7 +151,7 @@ fun categoryOptions(recipes: List<Recipe>): List<String> = recipes
     .map { it.section.trim() }
     .filter(String::isNotBlank)
     .distinct()
-    .sorted(String.CASE_INSENSITIVE_ORDER)
+    .sortedWith(String.CASE_INSENSITIVE_ORDER)
 
 fun filterRecipesBySection(recipes: List<Recipe>, section: String?): List<Recipe> =
     section?.let { selected -> recipes.filter { it.section.equals(selected, ignoreCase = true) } } ?: recipes
