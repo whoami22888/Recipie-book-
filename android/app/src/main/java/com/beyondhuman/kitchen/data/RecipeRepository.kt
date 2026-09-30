@@ -65,8 +65,8 @@ class RecipeRepository(private val context: Context) {
 
     private fun Recipe.toEntity() = RecipeEntity(
         id, sourceRecipeNumber, title, description, section,
-        json.encodeToString<List<String>>(shoppingList), json.encodeToString<List<String>>(method),
-        json.encodeToString<List<Int>>(sourcePages), json.encodeToString<List<String>>(qualityFlags)
+        json.encodeToString(value = shoppingList), json.encodeToString(value = method),
+        json.encodeToString(value = sourcePages), json.encodeToString(value = qualityFlags)
     )
 
     private fun RecipeEntity.toModel() = Recipe(
