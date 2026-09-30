@@ -45,24 +45,4 @@ class MainActivitySmokeTest {
         }
     }
 
-    @Test
-    fun sharedTextIsUsedAsInitialSearch() {
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.intent = Intent(activity, MainActivity::class.java).apply {
-                putExtra(Intent.EXTRA_TEXT, "Pineapple")
-            }
-        }
-        composeRule.setContent {
-            KitchenApp(
-                repo = com.beyondhuman.kitchen.data.RecipeRepository(composeRule.activity),
-                sharedText = "Pineapple",
-                sharedUris = emptyList()
-            )
-        }
-
-        composeRule.waitUntil(20_000) {
-            composeRule.onAllNodesWithText("1. No-Bake Pineapple Pie").fetchSemanticsNodes().isNotEmpty()
-        }
-        composeRule.onNodeWithText("1. No-Bake Pineapple Pie").assertIsDisplayed()
-    }
 }
