@@ -9,7 +9,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CHUNKS = ROOT / "data" / "catalogue_payload"
-OUTPUT = json.dumps  # keep the implementation dependency-free
 
 
 def main() -> None:
@@ -24,7 +23,15 @@ def main() -> None:
     numbers = [r.get("sourceRecipeNumber") for r in recipes]
     if numbers != list(range(1, 425)):
         raise SystemExit("catalogue recipe numbers are not exactly 1..424")
-    payload = json.dumps(recipes, ensure_ascii=False, indent=2) + "\n"
+    if len({r.get("id") for r in recipes}) != 424:
+        raise SystemExit("catalogue recipe IDs are not unique")
+    catalog = {
+        "schemaVersion": 1,
+        "source": "For My Wife - The Complete Collection",
+        "recipeCount": 424,
+        "recipes": recipes,
+    }
+    payload = json.dumps(catalog, ensure_ascii=False, indent=2) + "\n"
     targets = [
         ROOT / "data" / "recipes_424.json",
         ROOT / "backend" / "app" / "recipes_424.json",
@@ -33,7 +40,7 @@ def main() -> None:
     for target in targets:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(payload, encoding="utf-8")
-    print(f"CATALOGUE RESTORE PASS: 424 recipes -> {len(targets)} targets")
+    print("CATALOGUE RESTORE PASS: 424 recipes -> 3 targets")
 
 
 if __name__ == "__main__":
