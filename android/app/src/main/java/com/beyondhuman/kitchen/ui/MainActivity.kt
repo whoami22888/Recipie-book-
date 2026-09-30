@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -57,8 +59,15 @@ private fun extractSharedUris(intent: Intent): List<Uri> = buildList {
 fun KitchenApp(repo: RecipeRepository, sharedText: String, sharedUris: List<Uri>) {
     var query by remember { mutableStateOf(sharedText) }
     var pantry by remember { mutableStateOf("") }
+    var selectedSection by remember { mutableStateOf<String?>(null) }
     var selected by remember { mutableStateOf<Recipe?>(null) }
+    var allRecipes by remember { mutableStateOf(emptyList<Recipe>()) }
     var results by remember { mutableStateOf(emptyList<Recipe>()) }
+    var categoryMenuExpanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        allRecipes = repo.all()
+    }
 
     MaterialTheme {
         Surface(Modifier.fillMaxSize()) {
@@ -81,12 +90,38 @@ fun KitchenApp(repo: RecipeRepository, sharedText: String, sharedUris: List<Uri>
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("What do I have? (comma separated)") }
                     )
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = { categoryMenuExpanded = true }) {
+                        Text(selectedSection ?: "All categories")
+                    }
+                    DropdownMenu(
+                        expanded = categoryMenuExpanded,
+                        onDismissRequest = { categoryMenuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("All categories") },
+                            onClick = {
+                                selectedSection = null
+                                categoryMenuExpanded = false
+                            }
+                        )
+                        categoryOptions(allRecipes).forEach { section ->
+                            DropdownMenuItem(
+                                text = { Text(section) },
+                                onClick = {
+                                    selectedSection = section
+                                    categoryMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
                     if (sharedUris.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
                         Text("${sharedUris.size} shared image(s) received. Image analysis is not enabled until the vision workflow is connected.")
                     }
-                    LaunchedEffect(query, pantry) {
-                        results = repo.search(query = query, ingredients = pantry.split(','))
+                    LaunchedEffect(query, pantry, selectedSection) {
+                        val searched = repo.search(query = query, ingredients = pantry.split(','))
+                        results = filterRecipesBySection(searched, selectedSection)
                     }
                     Spacer(Modifier.height(8.dp))
                     Text("${results.size} recipes", style = MaterialTheme.typography.labelLarge)
@@ -111,6 +146,15 @@ fun KitchenApp(repo: RecipeRepository, sharedText: String, sharedUris: List<Uri>
         }
     }
 }
+
+fun categoryOptions(recipes: List<Recipe>): List<String> = recipes
+    .map { it.section.trim() }
+    .filter(String::isNotBlank)
+    .distinct()
+    .sorted(String.CASE_INSENSITIVE_ORDER)
+
+fun filterRecipesBySection(recipes: List<Recipe>, section: String?): List<Recipe> =
+    section?.let { selected -> recipes.filter { it.section.equals(selected, ignoreCase = true) } } ?: recipes
 
 @Composable
 private fun StartupErrorScreen(message: String) {
