@@ -4,10 +4,8 @@ import android.content.Intent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onAllNodes
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -29,7 +27,7 @@ class MainActivitySmokeTest {
 
         composeRule.onNodeWithText("Beyond Human Kitchen").assertIsDisplayed()
         composeRule.onNodeWithText("424 recipes").assertIsDisplayed()
-        composeRule.onAllNodes(hasText("1. No-Bake Pineapple Pie", substring = true), useUnmergedTree = true).onFirst().performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("1. No-Bake Pineapple Pie", substring = true, useUnmergedTree = true).performScrollTo().assertIsDisplayed()
     }
 
     @Test
