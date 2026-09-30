@@ -46,7 +46,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private fun extractSharedText(intent: Intent): String = intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty()
+internal fun extractSharedText(intent: Intent): String = intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty()
 
 private fun extractSharedUris(intent: Intent): List<Uri> = buildList {
     intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.let(::add)
