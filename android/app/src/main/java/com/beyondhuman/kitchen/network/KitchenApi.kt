@@ -1,13 +1,14 @@
 package com.beyondhuman.kitchen.network
 
 import kotlinx.serialization.DeserializationStrategy
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.net.HttpURLConnection
 import java.net.URI
 
 class KitchenApi(private val baseUrl: String, private val json: Json = Json { ignoreUnknownKeys = true }) {
     fun chat(messages: List<ChatMessageDto>): ChatResponseDto {
-        val encoded = json.encodeToString(messages)
+        val encoded = json.encodeToString(ListSerializer(ChatMessageDto.serializer()), messages)
         return request("/v1/ai/chat", "{\"messages\":$encoded}", ChatResponseDto.serializer())
     }
 
