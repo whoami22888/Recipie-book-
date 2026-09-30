@@ -5,6 +5,8 @@ import androidx.room.Room
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
 class RecipeRepository(private val context: Context) {
@@ -65,8 +67,8 @@ class RecipeRepository(private val context: Context) {
 
     private fun Recipe.toEntity() = RecipeEntity(
         id, sourceRecipeNumber, title, description, section,
-        json.encodeToString(value = shoppingList), json.encodeToString(value = method),
-        json.encodeToString(value = sourcePages), json.encodeToString(value = qualityFlags)
+        json.encodeToString(ListSerializer(String.serializer()), shoppingList), json.encodeToString(ListSerializer(String.serializer()), method),
+        json.encodeToString(ListSerializer(Int.serializer()), sourcePages), json.encodeToString(ListSerializer(String.serializer()), qualityFlags)
     )
 
     private fun RecipeEntity.toModel() = Recipe(
