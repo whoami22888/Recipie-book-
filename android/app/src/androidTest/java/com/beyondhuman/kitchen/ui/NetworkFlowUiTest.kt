@@ -10,7 +10,6 @@ import androidx.compose.ui.test.performClick
 import com.beyondhuman.kitchen.network.KitchenApi
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.net.InetAddress
 import java.net.ServerSocket
 import java.nio.charset.StandardCharsets
 import org.junit.After
@@ -28,7 +27,7 @@ class NetworkFlowUiTest {
 
     @Before
     fun setUp() {
-        server = ServerSocket(0, 1, InetAddress.getLoopbackAddress())
+        server = ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1"))
         thread = Thread {
             while (!server.isClosed) {
                 try {
