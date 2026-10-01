@@ -43,6 +43,9 @@ jobs:
           gradle-version: '8.10.2'
       - run: gradle lintDebug testDebugUnitTest assembleDebug
         working-directory: android
+      - name: Validate release configuration
+        run: BACKEND_BASE_URL=https://api.example.invalid gradle assembleRelease
+        working-directory: android
 
 
   android-instrumented:

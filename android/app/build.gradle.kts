@@ -5,6 +5,22 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
 }
+
+val backendBaseUrl = providers.gradleProperty("BACKEND_BASE_URL")
+    .orElse(providers.environmentVariable("BACKEND_BASE_URL"))
+    .orElse("https://example.invalid")
+    .get()
+
+val releaseTaskRequested = gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
+if (releaseTaskRequested) {
+    require(backendBaseUrl != "https://example.invalid") {
+        "Release builds require -PBACKEND_BASE_URL or BACKEND_BASE_URL and must not use the placeholder endpoint"
+    }
+    require(backendBaseUrl.startsWith("https://")) {
+        "Production backend endpoint must use HTTPS"
+    }
+}
+
 android {
     buildFeatures { buildConfig = true }
     namespace = "com.beyondhuman.kitchen"
@@ -15,7 +31,7 @@ android {
         targetSdk = 35
         versionCode = 4
         versionName = "0.4.0"
-        buildConfigField("String", "BACKEND_BASE_URL", "\"https://example.invalid\"")
+        buildConfigField("String", "BACKEND_BASE_URL", "\"$backendBaseUrl\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {
