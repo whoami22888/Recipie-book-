@@ -5,6 +5,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -45,4 +47,25 @@ class MainActivitySmokeTest {
         }
     }
 
+    @Test
+    fun photoFlowOpensAndConfirmsManualIngredients() {
+        composeRule.waitUntil(20_000) {
+            composeRule.onNodeWithText("424 recipes").isDisplayed()
+        }
+
+        composeRule.onNodeWithText("Find recipes from a photo").performClick()
+        composeRule.onNodeWithText("Find recipes from what you have").assertIsDisplayed()
+        composeRule.onNodeWithText("Photo mode: fridge").assertIsDisplayed()
+
+        composeRule.onNodeWithText("Photo mode: fridge").performClick()
+        composeRule.onNodeWithText("both").performClick()
+        composeRule.onNodeWithText("Photo mode: both").assertIsDisplayed()
+
+        composeRule.onNodeWithText("Add ingredients manually, comma separated")
+            .performTextInput("pineapple, flour")
+        composeRule.onNodeWithText("Use confirmed ingredients").performClick()
+
+        composeRule.onNodeWithText("Confirmed photo ingredients: pineapple, flour").assertIsDisplayed()
+        composeRule.onNodeWithText("424 recipes").assertIsDisplayed()
+    }
 }
