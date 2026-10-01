@@ -26,6 +26,13 @@ jobs:
       - run: pip install -r backend/requirements.txt
       - run: pytest -q backend/tests
 
+  backend-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production backend image
+        run: docker build -f backend/Dockerfile -t beyond-human-kitchen-api:ci .
+
   android:
     runs-on: ubuntu-latest
     steps:
