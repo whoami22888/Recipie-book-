@@ -1,8 +1,3 @@
-val backendBaseUrl = providers.gradleProperty("BACKEND_BASE_URL")
-    .orElse(providers.environmentVariable("BACKEND_BASE_URL"))
-    .orElse("https://example.invalid")
-    .get()
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -10,6 +5,12 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
 }
+
+val backendBaseUrl = providers.gradleProperty("BACKEND_BASE_URL")
+    .orElse(providers.environmentVariable("BACKEND_BASE_URL"))
+    .orElse("https://example.invalid")
+    .get()
+
 android {
     buildFeatures { buildConfig = true }
     namespace = "com.beyondhuman.kitchen"
