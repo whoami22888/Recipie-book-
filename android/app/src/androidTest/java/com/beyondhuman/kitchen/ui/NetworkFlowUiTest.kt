@@ -88,9 +88,9 @@ class NetworkFlowUiTest {
         composeRule.onNodeWithText("What should I cook?").performTextInput("What can I make with pineapple?")
         composeRule.onNodeWithText("Send").performClick()
         composeRule.waitUntil(10_000) {
-            composeRule.onNodeWithText("Make pineapple pie").isDisplayed()
+            composeRule.onNodeWithText("assistant: Make pineapple pie").isDisplayed()
         }
-        composeRule.onNodeWithText("Make pineapple pie").assertIsDisplayed()
+        composeRule.onNodeWithText("assistant: Make pineapple pie").assertIsDisplayed()
     }
 
     @Test
