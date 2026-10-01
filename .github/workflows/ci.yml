@@ -2,6 +2,7 @@ name: Beyond Human Kitchen CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   catalogue:
