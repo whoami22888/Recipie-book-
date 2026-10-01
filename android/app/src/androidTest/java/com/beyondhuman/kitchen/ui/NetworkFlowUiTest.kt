@@ -60,7 +60,7 @@ class NetworkFlowUiTest {
                             else -> """{"error":"unexpected request"}"""
                         }
                         val bytes = response.toByteArray(StandardCharsets.UTF_8)
-                        val raw = "HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\nContent-Length: ${bytes.size}\\r\\nConnection: close\\r\\n\\r\\n"
+                        val raw = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n"
                         socket.getOutputStream().use { output ->
                             output.write(raw.toByteArray(StandardCharsets.UTF_8))
                             output.write(bytes)
