@@ -2,6 +2,7 @@ package com.beyondhuman.kitchen.network
 
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import java.net.HttpURLConnection
 import java.net.URI
@@ -13,7 +14,7 @@ class KitchenApi(private val baseUrl: String, private val json: Json = Json { ig
     }
 
     fun importUrl(url: String): ImportResponseDto {
-        val encoded = json.encodeToString(url)
+        val encoded = json.encodeToString(String.serializer(), url)
         return request("/v1/import/url", "{\"url\":$encoded}", ImportResponseDto.serializer())
     }
 
