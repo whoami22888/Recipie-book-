@@ -55,6 +55,33 @@ jobs:
         working-directory: android
 
 
+  production-smoke:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install httpx==0.28.1
+      - name: Require production configuration
+        env:
+          PRODUCTION_BASE_URL: ${{ secrets.PRODUCTION_BASE_URL }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+        run: |
+          test -n "$PRODUCTION_BASE_URL"
+          test -n "$AI_API_KEY"
+          test -n "$AI_MODEL"
+          case "$PRODUCTION_BASE_URL" in
+            https://*) ;;
+            *) echo "PRODUCTION_BASE_URL must use HTTPS"; exit 1 ;;
+          esac
+      - name: Verify deployed production service
+        env:
+          PRODUCTION_BASE_URL: ${{ secrets.PRODUCTION_BASE_URL }}
+        run: python scripts/verify_production.py
   android-instrumented:
     runs-on: ubuntu-latest
     timeout-minutes: 35
