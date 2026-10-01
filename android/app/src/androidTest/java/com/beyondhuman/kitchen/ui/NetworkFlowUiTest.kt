@@ -30,8 +30,9 @@ class NetworkFlowUiTest {
     fun setUp() {
         server = ServerSocket(0, 1, InetAddress.getLoopbackAddress())
         thread = Thread {
-            repeat(2) {
-                server.accept().use { socket ->
+            while (!server.isClosed) {
+                try {
+                    server.accept().use { socket ->
                     val reader = BufferedReader(InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
                     val headers = buildString {
                         while (true) {
@@ -61,6 +62,8 @@ class NetworkFlowUiTest {
                         output.write(bytes)
                         output.flush()
                     }
+                } catch (error: java.net.SocketException) {
+                    if (!server.isClosed) throw error
                 }
             }
         }.apply { isDaemon = true }
