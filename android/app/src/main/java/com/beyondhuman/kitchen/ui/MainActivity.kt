@@ -1,11 +1,13 @@
 package com.beyondhuman.kitchen.ui
 
+import android.Manifest
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -188,6 +190,9 @@ private fun VisionIngredientScreen(initialUris: List<Uri>, onConfirmed: (List<St
     var status by remember { mutableStateOf(if (initialUris.isEmpty()) "Take a photo of your fridge, cupboard, or both." else "Analysing shared image(s)…") }
     var captureMode by remember { mutableStateOf("fridge") }
     var capturedCount by remember { mutableStateOf(0) }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        status = if (granted) "Camera permission granted. Take a photo." else "Camera permission denied. You can still use shared images or add ingredients manually."
+    }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
         if (bitmap == null) status = "Camera capture cancelled."
         else {
@@ -215,7 +220,13 @@ private fun VisionIngredientScreen(initialUris: List<Uri>, onConfirmed: (List<St
         Spacer(Modifier.height(12.dp))
         PhotoModeMenu(captureMode) { captureMode = it }
         Spacer(Modifier.height(8.dp))
-        Button(onClick = { launcher.launch(null) }) { Text(if (captureMode == "both" && capturedCount == 1) "Capture cupboard" else "Take photo") }
+        Button(onClick = {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                launcher.launch(null)
+            } else {
+                permissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        }) { Text(if (captureMode == "both" && capturedCount == 1) "Capture cupboard" else "Take photo") }
         Spacer(Modifier.height(12.dp))
         Text("Detected labels require your confirmation.", style = MaterialTheme.typography.labelLarge)
         candidates.forEach { candidate ->
