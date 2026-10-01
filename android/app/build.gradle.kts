@@ -6,6 +6,7 @@ plugins {
     id("com.google.devtools.ksp")
 }
 android {
+    buildFeatures { buildConfig = true }
     namespace = "com.beyondhuman.kitchen"
     compileSdk = 35
     defaultConfig {
@@ -14,6 +15,7 @@ android {
         targetSdk = 35
         versionCode = 4
         versionName = "0.4.0"
+        buildConfigField("String", "BACKEND_BASE_URL", "\"https://example.invalid\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {

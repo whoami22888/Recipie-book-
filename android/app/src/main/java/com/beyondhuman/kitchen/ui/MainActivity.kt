@@ -1,7 +1,6 @@
 package com.beyondhuman.kitchen.ui
 
 import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -10,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,15 +32,23 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.beyondhuman.kitchen.data.Recipe
 import com.beyondhuman.kitchen.data.RecipeRepository
+import com.beyondhuman.kitchen.network.ChatMessageDto
+import com.beyondhuman.kitchen.network.ImportResponseDto
+import com.beyondhuman.kitchen.network.KitchenApi
+import com.beyondhuman.kitchen.network.NetworkConfig
 import com.beyondhuman.kitchen.vision.IngredientAnalyzer
 import com.beyondhuman.kitchen.vision.IngredientCandidate
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,65 +80,51 @@ fun KitchenApp(repo: RecipeRepository, sharedText: String, sharedUris: List<Uri>
     var categoryMenuExpanded by remember { mutableStateOf(false) }
     var showVision by remember { mutableStateOf(sharedUris.isNotEmpty()) }
     var confirmedVisionIngredients by remember { mutableStateOf(emptyList<String>()) }
+    var networkScreen by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit) {
-        allRecipes = repo.all()
-    }
+    LaunchedEffect(Unit) { allRecipes = repo.all() }
 
     MaterialTheme {
         Surface(Modifier.fillMaxSize()) {
-            if (showVision) {
-                VisionIngredientScreen(initialUris = sharedUris, onConfirmed = { ingredients -> confirmedVisionIngredients = ingredients; pantry = ingredients.joinToString(", "); showVision = false }, onCancel = { showVision = false })
-            } else if (selected != null) {
-                RecipeScreen(selected!!) { selected = null }
-            } else {
-                Column(Modifier.padding(16.dp)) {
+            when {
+                showVision -> VisionIngredientScreen(
+                    initialUris = sharedUris,
+                    onConfirmed = { ingredients ->
+                        confirmedVisionIngredients = ingredients
+                        pantry = ingredients.joinToString(",")
+                        showVision = false
+                    },
+                    onCancel = { showVision = false }
+                )
+                networkScreen == "chat" -> ChatScreen(onBack = { networkScreen = null })
+                networkScreen == "import" -> ImportScreen(onBack = { networkScreen = null })
+                selected != null -> RecipeScreen(selected!!) { selected = null }
+                else -> Column(Modifier.padding(16.dp)) {
                     Text("Beyond Human Kitchen", style = MaterialTheme.typography.headlineMedium)
                     Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Search recipes, ingredients or categories") }
-                    )
+                    OutlinedTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Search recipes, ingredients or categories") })
                     Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = pantry,
-                        onValueChange = { pantry = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("What do I have? (comma separated)") }
-                    )
+                    OutlinedTextField(value = pantry, onValueChange = { pantry = it }, modifier = Modifier.fillMaxWidth(), label = { Text("What do I have? (comma separated)") })
                     Spacer(Modifier.height(8.dp))
                     Button(onClick = { showVision = true }) { Text("Find recipes from a photo") }
                     Spacer(Modifier.height(8.dp))
-                    Button(onClick = { categoryMenuExpanded = true }) {
-                        Text(selectedSection ?: "All categories")
-                    }
-                    DropdownMenu(
-                        expanded = categoryMenuExpanded,
-                        onDismissRequest = { categoryMenuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("All categories") },
-                            onClick = {
-                                selectedSection = null
-                                categoryMenuExpanded = false
-                            }
-                        )
+                    Button(onClick = { networkScreen = "chat" }) { Text("Ask AI what to cook") }
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = { networkScreen = "import" }) { Text("Import recipe from URL") }
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = { categoryMenuExpanded = true }) { Text(selectedSection ?: "All categories") }
+                    DropdownMenu(expanded = categoryMenuExpanded, onDismissRequest = { categoryMenuExpanded = false }) {
+                        DropdownMenuItem(text = { Text("All categories") }, onClick = { selectedSection = null; categoryMenuExpanded = false })
                         categoryOptions(allRecipes).forEach { section ->
-                            DropdownMenuItem(
-                                text = { Text(section) },
-                                onClick = {
-                                    selectedSection = section
-                                    categoryMenuExpanded = false
-                                }
-                            )
+                            DropdownMenuItem(text = { Text(section) }, onClick = { selectedSection = section; categoryMenuExpanded = false })
                         }
                     }
-                    if (confirmedVisionIngredients.isNotEmpty()) { Spacer(Modifier.height(8.dp)); Text("Confirmed photo ingredients: " + confirmedVisionIngredients.joinToString(", ")) }
+                    if (confirmedVisionIngredients.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text("Confirmed photo ingredients: " + confirmedVisionIngredients.joinToString(", "))
+                    }
                     LaunchedEffect(query, pantry, selectedSection) {
-                        val searched = repo.search(query = query, ingredients = pantry.split(','))
-                        results = filterRecipesBySection(searched, selectedSection)
+                        results = filterRecipesBySection(repo.search(query = query, ingredients = pantry.split(',')), selectedSection)
                     }
                     Spacer(Modifier.height(8.dp))
                     Text("${results.size} recipes", style = MaterialTheme.typography.labelLarge)
@@ -138,13 +132,7 @@ fun KitchenApp(repo: RecipeRepository, sharedText: String, sharedUris: List<Uri>
                         items(results, key = { it.id }) { recipe ->
                             ListItem(
                                 headlineContent = { Text("${recipe.sourceRecipeNumber}. ${recipe.title}") },
-                                supportingContent = {
-                                    Text(
-                                        listOf(recipe.section, *recipe.shoppingList.take(2).toTypedArray())
-                                            .filter(String::isNotBlank)
-                                            .joinToString(" • ")
-                                    )
-                                },
+                                supportingContent = { Text(listOf(recipe.section, *recipe.shoppingList.take(2).toTypedArray()).filter(String::isNotBlank).joinToString(" • ")) },
                                 modifier = Modifier.clickable { selected = recipe }
                             )
                             Divider()
@@ -156,11 +144,7 @@ fun KitchenApp(repo: RecipeRepository, sharedText: String, sharedUris: List<Uri>
     }
 }
 
-fun categoryOptions(recipes: List<Recipe>): List<String> = recipes
-    .map { it.section.trim() }
-    .filter(String::isNotBlank)
-    .distinct()
-    .sortedWith(String.CASE_INSENSITIVE_ORDER)
+fun categoryOptions(recipes: List<Recipe>): List<String> = recipes.map { it.section.trim() }.filter(String::isNotBlank).distinct().sortedWith(String.CASE_INSENSITIVE_ORDER)
 
 fun filterRecipesBySection(recipes: List<Recipe>, section: String?): List<Recipe> =
     section?.let { selected -> recipes.filter { it.section.equals(selected, ignoreCase = true) } } ?: recipes
@@ -194,14 +178,9 @@ fun RecipeScreen(recipe: Recipe, onBack: () -> Unit) {
     }
 }
 
-
 @Composable
-private fun VisionIngredientScreen(
-    initialUris: List<Uri>,
-    onConfirmed: (List<String>) -> Unit,
-    onCancel: () -> Unit
-) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+private fun VisionIngredientScreen(initialUris: List<Uri>, onConfirmed: (List<String>) -> Unit, onCancel: () -> Unit) {
+    val context = LocalContext.current
     val analyzer = remember { IngredientAnalyzer() }
     var candidates by remember { mutableStateOf(emptyList<IngredientCandidate>()) }
     var selected by remember { mutableStateOf(emptySet<String>()) }
@@ -240,10 +219,8 @@ private fun VisionIngredientScreen(
         Spacer(Modifier.height(12.dp))
         Text("Detected labels require your confirmation.", style = MaterialTheme.typography.labelLarge)
         candidates.forEach { candidate ->
-            androidx.compose.foundation.layout.Row {
-                Checkbox(checked = candidate.label in selected, onCheckedChange = { checked ->
-                    selected = if (checked) selected + candidate.label else selected - candidate.label
-                })
+            Row {
+                Checkbox(checked = candidate.label in selected, onCheckedChange = { checked -> selected = if (checked) selected + candidate.label else selected - candidate.label })
                 Text(candidate.label + " (" + (candidate.confidence * 100).toInt() + "%)", modifier = Modifier.padding(top = 12.dp))
             }
         }
@@ -265,11 +242,75 @@ private fun PhotoModeMenu(value: String, onSelected: (String) -> Unit) {
         Button(onClick = { expanded = true }) { Text("Photo mode: " + value) }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             listOf("fridge", "cupboard", "both").forEach { mode ->
-                DropdownMenuItem(text = { Text(mode.replaceFirstChar(Char::uppercase)) }, onClick = {
-                    expanded = false
-                    onSelected(mode)
-                })
+                DropdownMenuItem(text = { Text(mode.replaceFirstChar(Char::uppercase)) }, onClick = { expanded = false; onSelected(mode) })
             }
+        }
+    }
+}
+
+@Composable
+private fun ChatScreen(onBack: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val api = remember { KitchenApi(NetworkConfig.BASE_URL) }
+    var input by remember { mutableStateOf("") }
+    var messages by remember { mutableStateOf(listOf<ChatMessageDto>()) }
+    var status by remember { mutableStateOf("") }
+    Column(Modifier.padding(16.dp)) {
+        Button(onClick = onBack) { Text("Back") }
+        Text("AI food assistant", style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(8.dp))
+        LazyColumn { items(messages) { message -> Text(message.role + ": " + message.content, modifier = Modifier.padding(vertical = 4.dp)) } }
+        OutlinedTextField(value = input, onValueChange = { input = it }, modifier = Modifier.fillMaxWidth(), label = { Text("What should I cook?") })
+        Spacer(Modifier.height(8.dp))
+        Button(enabled = input.isNotBlank(), onClick = {
+            val userMessage = input.trim()
+            input = ""
+            val updatedMessages = messages + ChatMessageDto("user", userMessage)
+            messages = updatedMessages
+            status = "Asking AI…"
+            scope.launch {
+                runCatching { withContext(Dispatchers.IO) { api.chat(updatedMessages) } }
+                    .onSuccess { response -> messages = messages + ChatMessageDto("assistant", response.content); status = "" }
+                    .onFailure { status = "AI unavailable. Check the backend connection and try again." }
+            }
+        }) { Text("Send") }
+        if (status.isNotBlank()) Text(status, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+@Composable
+private fun ImportScreen(onBack: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val api = remember { KitchenApi(NetworkConfig.BASE_URL) }
+    var url by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf("") }
+    var draft by remember { mutableStateOf<ImportResponseDto?>(null) }
+    var confirmed by remember { mutableStateOf(false) }
+    Column(Modifier.padding(16.dp)) {
+        Button(onClick = onBack) { Text("Back") }
+        Text("Import recipe", style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(value = url, onValueChange = { url = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Recipe URL") })
+        Spacer(Modifier.height(8.dp))
+        Button(enabled = url.isNotBlank(), onClick = {
+            status = "Importing…"
+            scope.launch {
+                runCatching { withContext(Dispatchers.IO) { api.importUrl(url.trim()) } }
+                    .onSuccess { response -> draft = response; confirmed = false; status = if (response.requiresConfirmation) "Draft received. Review it before accepting." else "Import complete." }
+                    .onFailure { draft = null; status = "Import failed. Check the URL and backend connection." }
+            }
+        }) { Text("Fetch recipe") }
+        if (status.isNotBlank()) { Spacer(Modifier.height(8.dp)); Text(status) }
+        draft?.let { item ->
+            Spacer(Modifier.height(12.dp))
+            Text(item.title, style = MaterialTheme.typography.titleLarge)
+            Text("Source: " + item.sourceUrl)
+            Text("Provenance: " + item.provenance)
+            Text("Ingredients: " + item.ingredients.joinToString(", "))
+            Text("Method steps: " + item.method.size)
+            Spacer(Modifier.height(8.dp))
+            if (!confirmed) Button(onClick = { confirmed = true }) { Text("Confirm imported draft") }
+            else Text("Import confirmed for review. Persistent saving is intentionally not enabled until the user-data schema is migrated.")
         }
     }
 }
