@@ -19,9 +19,6 @@ def main() -> None:
     if not base.startswith("https://"):
         raise SystemExit("PRODUCTION_BASE_URL must use HTTPS")
 
-    ai_key = require_env("AI_API_KEY")
-    ai_model = require_env("AI_MODEL")
-
     timeout = httpx.Timeout(30.0, connect=10.0)
 
     with httpx.Client(base_url=base, timeout=timeout, follow_redirects=False) as client:
@@ -49,15 +46,7 @@ def main() -> None:
                     }
                 ]
             },
-            headers={
-                "X-Production-Smoke-Key": ai_key,
-                "X-Production-Smoke-Model": ai_model,
-            },
         )
-        # The backend intentionally accepts provider credentials only from its
-        # runtime environment. These headers are never interpreted as provider
-        # credentials; they make the required CI secrets observable to the
-        # smoke workflow without exposing them in the URL or request body.
         if ai.status_code == 503:
             raise SystemExit(
                 "Production AI is not configured. Configure AI_API_KEY and AI_MODEL "
