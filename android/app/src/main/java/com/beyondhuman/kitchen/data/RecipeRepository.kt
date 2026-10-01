@@ -17,7 +17,7 @@ class RecipeRepository(private val context: Context) {
 
     private val json = Json { ignoreUnknownKeys = true }
     private val db = Room.databaseBuilder(context, KitchenDatabase::class.java, DATABASE_NAME)
-        .fallbackToDestructiveMigration()
+        .addMigrations(KitchenDatabase.MIGRATION_2_3)
         .build()
 
     suspend fun ensureSeeded() = withContext(Dispatchers.IO) {
