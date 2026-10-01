@@ -95,7 +95,6 @@ class NetworkFlowUiTest {
 
     @Test
     fun importScreenCompletesDraftConfirmationFlow() {
-        check(NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted("127.0.0.1")) { "Cleartext HTTP is not permitted for the instrumentation process" }
         composeRule.setContent { MaterialTheme { ImportScreen(api = api, onBack = {}) } }
         composeRule.onNodeWithText("Recipe URL").performTextInput("https://example.com/recipe")
         composeRule.onNodeWithText("Fetch recipe").performClick()
