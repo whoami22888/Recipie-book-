@@ -8,6 +8,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Entity(tableName = "recipes")
 data class RecipeEntity(
@@ -47,7 +49,15 @@ interface RecipeDao {
     suspend fun count(): Int
 }
 
-@Database(entities = [RecipeEntity::class], version = 2, exportSchema = false)
+@Database(entities = [RecipeEntity::class], version = 3, exportSchema = false)
 abstract class KitchenDatabase : RoomDatabase() {
     abstract fun recipes(): RecipeDao
+
+    companion object {
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // v2 and v3 have the same schema; preserve existing rows explicitly.
+            }
+        }
+    }
 }
