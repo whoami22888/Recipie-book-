@@ -33,34 +33,40 @@ class NetworkFlowUiTest {
             while (!server.isClosed) {
                 try {
                     server.accept().use { socket ->
-                    val reader = BufferedReader(InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
-                    val headers = buildString {
-                        while (true) {
-                            val line = reader.readLine() ?: break
-                            if (line.isEmpty()) break
-                            append(line).append('\n')
+                        val reader = BufferedReader(
+                            InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)
+                        )
+                        val headers = buildString {
+                            while (true) {
+                                val line = reader.readLine() ?: break
+                                if (line.isEmpty()) break
+                                append(line).append('\n')
+                            }
                         }
-                    }
-                    val length = Regex("(?im)^Content-Length: (\\d+)$").find(headers)?.groupValues?.get(1)?.toInt() ?: 0
-                    val body = CharArray(length)
-                    var offset = 0
-                    while (offset < length) {
-                        val read = reader.read(body, offset, length - offset)
-                        if (read < 0) break
-                        offset += read
-                    }
-                    val request = String(body, 0, offset)
-                    val response = when {
-                        request.contains("\"messages\"") -> """{"content":"Make pineapple pie","model":"test-model"}"""
-                        request.contains("\"url\"") -> """{"status":"draft","sourceUrl":"https://example.com/recipe","title":"Test Recipe","requiresConfirmation":true,"ingredients":["pineapple"],"method":["Mix"],"provenance":"external-url"}"""
-                        else -> """{"error":"unexpected request"}"""
-                    }
-                    val bytes = response.toByteArray(StandardCharsets.UTF_8)
-                    val raw = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n"
-                    socket.getOutputStream().use { output ->
-                        output.write(raw.toByteArray(StandardCharsets.UTF_8))
-                        output.write(bytes)
-                        output.flush()
+                        val length = Regex("(?im)^Content-Length: (\\d+)$")
+                            .find(headers)?.groupValues?.get(1)?.toInt() ?: 0
+                        val body = CharArray(length)
+                        var offset = 0
+                        while (offset < length) {
+                            val read = reader.read(body, offset, length - offset)
+                            if (read < 0) break
+                            offset += read
+                        }
+                        val request = String(body, 0, offset)
+                        val response = when {
+                            request.contains("\"messages\"") ->
+                                """{"content":"Make pineapple pie","model":"test-model"}"""
+                            request.contains("\"url\"") ->
+                                """{"status":"draft","sourceUrl":"https://example.com/recipe","title":"Test Recipe","requiresConfirmation":true,"ingredients":["pineapple"],"method":["Mix"],"provenance":"external-url"}"""
+                            else -> """{"error":"unexpected request"}"""
+                        }
+                        val bytes = response.toByteArray(StandardCharsets.UTF_8)
+                        val raw = "HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\nContent-Length: ${bytes.size}\\r\\nConnection: close\\r\\n\\r\\n"
+                        socket.getOutputStream().use { output ->
+                            output.write(raw.toByteArray(StandardCharsets.UTF_8))
+                            output.write(bytes)
+                            output.flush()
+                        }
                     }
                 } catch (error: java.net.SocketException) {
                     if (!server.isClosed) throw error
