@@ -1,5 +1,6 @@
 package com.beyondhuman.kitchen.ui
 
+import android.security.NetworkSecurityPolicy
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.isDisplayed
@@ -84,6 +85,7 @@ class NetworkFlowUiTest {
 
     @Test
     fun chatScreenCompletesClientToUiFlow() {
+        check(NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted("127.0.0.1")) { "Cleartext HTTP is not permitted for the instrumentation process" }
         composeRule.setContent { MaterialTheme { ChatScreen(api = api, onBack = {}) } }
         composeRule.onNodeWithText("What should I cook?").performTextInput("What can I make with pineapple?")
         composeRule.onNodeWithText("Send").performClick()
@@ -95,6 +97,7 @@ class NetworkFlowUiTest {
 
     @Test
     fun importScreenCompletesDraftConfirmationFlow() {
+        check(NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted("127.0.0.1")) { "Cleartext HTTP is not permitted for the instrumentation process" }
         composeRule.setContent { MaterialTheme { ImportScreen(api = api, onBack = {}) } }
         composeRule.onNodeWithText("Recipe URL").performTextInput("https://example.com/recipe")
         composeRule.onNodeWithText("Fetch recipe").performClick()
