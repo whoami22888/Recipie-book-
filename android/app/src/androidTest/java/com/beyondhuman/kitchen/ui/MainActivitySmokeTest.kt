@@ -59,7 +59,7 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithText("Photo mode: fridge").assertIsDisplayed()
 
         composeRule.onNodeWithText("Photo mode: fridge").performClick()
-        composeRule.onNodeWithText("both").performClick()
+        composeRule.onNodeWithText("Both").performClick()
         composeRule.onNodeWithText("Photo mode: both").assertIsDisplayed()
 
         composeRule.onNodeWithText("Add ingredients manually, comma separated")
