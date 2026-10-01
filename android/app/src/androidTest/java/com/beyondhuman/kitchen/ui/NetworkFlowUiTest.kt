@@ -2,7 +2,7 @@ package com.beyondhuman.kitchen.ui
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTextInput
@@ -80,8 +80,7 @@ class NetworkFlowUiTest {
         composeRule.onNodeWithText("What should I cook?").performTextInput("What can I make with pineapple?")
         composeRule.onNodeWithText("Send").performClick()
         composeRule.waitUntil(10_000) {
-            try { composeRule.onNodeWithText("Make pineapple pie").assertExists(); true }
-            catch (_: AssertionError) { false }
+            composeRule.onNodeWithText("Make pineapple pie").isDisplayed()
         }
         composeRule.onNodeWithText("Make pineapple pie").assertIsDisplayed()
     }
@@ -92,8 +91,7 @@ class NetworkFlowUiTest {
         composeRule.onNodeWithText("Recipe URL").performTextInput("https://example.com/recipe")
         composeRule.onNodeWithText("Fetch recipe").performClick()
         composeRule.waitUntil(10_000) {
-            try { composeRule.onNodeWithText("Test Recipe").assertExists(); true }
-            catch (_: AssertionError) { false }
+            composeRule.onNodeWithText("Test Recipe").isDisplayed()
         }
         composeRule.onNodeWithText("Test Recipe").assertIsDisplayed()
         composeRule.onNodeWithText("Confirm imported draft").performClick()
