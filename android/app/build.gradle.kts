@@ -1,3 +1,8 @@
+val backendBaseUrl = providers.gradleProperty("BACKEND_BASE_URL")
+    .orElse(providers.environmentVariable("BACKEND_BASE_URL"))
+    .orElse("https://example.invalid")
+    .get()
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -15,8 +20,18 @@ android {
         targetSdk = 35
         versionCode = 4
         versionName = "0.4.0"
-        buildConfigField("String", "BACKEND_BASE_URL", "\"https://example.invalid\"")
+        buildConfigField("String", "BACKEND_BASE_URL", "\"$backendBaseUrl\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+    buildTypes {
+        release {
+            check(backendBaseUrl != "https://example.invalid") {
+                "Release builds require -PBACKEND_BASE_URL or BACKEND_BASE_URL and must not use the placeholder endpoint"
+            }
+            check(backendBaseUrl.startsWith("https://")) {
+                "Production backend endpoint must use HTTPS"
+            }
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
