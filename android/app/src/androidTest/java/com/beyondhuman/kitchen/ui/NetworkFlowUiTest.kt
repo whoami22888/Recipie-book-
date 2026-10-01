@@ -2,6 +2,7 @@ package com.beyondhuman.kitchen.ui
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTextInput
@@ -49,10 +50,8 @@ class NetworkFlowUiTest {
                     }
                     val request = String(body, 0, offset)
                     val response = when {
-                        request.contains("\"messages\"") ->
-                            """{"content":"Make pineapple pie","model":"test-model"}"""
-                        request.contains("\"url\"") ->
-                            """{"status":"draft","sourceUrl":"https://example.com/recipe","title":"Test Recipe","requiresConfirmation":true,"ingredients":["pineapple"],"method":["Mix"],"provenance":"external-url"}"""
+                        request.contains("\"messages\"") -> """{"content":"Make pineapple pie","model":"test-model"}"""
+                        request.contains("\"url\"") -> """{"status":"draft","sourceUrl":"https://example.com/recipe","title":"Test Recipe","requiresConfirmation":true,"ingredients":["pineapple"],"method":["Mix"],"provenance":"external-url"}"""
                         else -> """{"error":"unexpected request"}"""
                     }
                     val bytes = response.toByteArray(StandardCharsets.UTF_8)
@@ -77,28 +76,24 @@ class NetworkFlowUiTest {
 
     @Test
     fun chatScreenCompletesClientToUiFlow() {
-        composeRule.setContent {
-            MaterialTheme { ChatScreen(api = api, onBack = {}) }
-        }
-
+        composeRule.setContent { MaterialTheme { ChatScreen(api = api, onBack = {}) } }
         composeRule.onNodeWithText("What should I cook?").performTextInput("What can I make with pineapple?")
         composeRule.onNodeWithText("Send").performClick()
         composeRule.waitUntil(10_000) {
-            composeRule.onNodeWithText("Make pineapple pie").fetchSemanticsNodes().isNotEmpty()
+            try { composeRule.onNodeWithText("Make pineapple pie").assertExists(); true }
+            catch (_: AssertionError) { false }
         }
         composeRule.onNodeWithText("Make pineapple pie").assertIsDisplayed()
     }
 
     @Test
     fun importScreenCompletesDraftConfirmationFlow() {
-        composeRule.setContent {
-            MaterialTheme { ImportScreen(api = api, onBack = {}) }
-        }
-
+        composeRule.setContent { MaterialTheme { ImportScreen(api = api, onBack = {}) } }
         composeRule.onNodeWithText("Recipe URL").performTextInput("https://example.com/recipe")
         composeRule.onNodeWithText("Fetch recipe").performClick()
         composeRule.waitUntil(10_000) {
-            composeRule.onNodeWithText("Test Recipe").fetchSemanticsNodes().isNotEmpty()
+            try { composeRule.onNodeWithText("Test Recipe").assertExists(); true }
+            catch (_: AssertionError) { false }
         }
         composeRule.onNodeWithText("Test Recipe").assertIsDisplayed()
         composeRule.onNodeWithText("Confirm imported draft").performClick()
