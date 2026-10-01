@@ -64,3 +64,26 @@ Then verify:
 - Offline catalogue search continues to work when the backend is unavailable.
 
 Do not mark live deployment verified until these checks have been executed against the actual deployed service and evidence recorded.
+
+
+## Automated production verification
+
+GitHub Actions now provides a manual **production-smoke** job. Configure these GitHub Actions secrets in the repository's `production` environment:
+
+- `PRODUCTION_BASE_URL` — the real deployed HTTPS API origin, for example `https://api.example.com`.
+- `AI_API_KEY` — the same provider credential configured in the deployed backend.
+- `AI_MODEL` — the same model identifier configured in the deployed backend.
+
+The smoke job first requires those configuration values, then verifies the live HTTPS service:
+
+1. HTTPS is reachable.
+2. `/health` reports exactly 424 recipes.
+3. Recipe search returns catalogue results.
+4. `/v1/ai/chat` succeeds through the deployed AI provider.
+5. `/v1/import/url` returns a draft with confirmation required.
+6. A localhost URL is rejected by SSRF protection.
+7. A release APK is built against the verified production endpoint and uploaded as a workflow artifact.
+
+A successful container build is not sufficient for production verification. The production smoke job must complete successfully against the real deployed service.
+
+The workflow does not transmit `AI_API_KEY` or `AI_MODEL` to the Android application or to the backend request. They are only used as configuration-presence checks in CI; the deployed backend must hold the actual provider credentials in its own runtime secret store.
