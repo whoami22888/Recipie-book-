@@ -83,6 +83,7 @@ fun KitchenApp(repo: RecipeRepository, sharedText: String, sharedUris: List<Uri>
     var showVision by remember { mutableStateOf(sharedUris.isNotEmpty()) }
     var confirmedVisionIngredients by remember { mutableStateOf(emptyList<String>()) }
     var networkScreen by remember { mutableStateOf<String?>(null) }
+    val networkApi = remember { KitchenApi(NetworkConfig.BASE_URL) }
 
     LaunchedEffect(Unit) { allRecipes = repo.all() }
 
@@ -98,8 +99,8 @@ fun KitchenApp(repo: RecipeRepository, sharedText: String, sharedUris: List<Uri>
                     },
                     onCancel = { showVision = false }
                 )
-                networkScreen == "chat" -> ChatScreen(onBack = { networkScreen = null })
-                networkScreen == "import" -> ImportScreen(onBack = { networkScreen = null })
+                networkScreen == "chat" -> ChatScreen(api = networkApi, onBack = { networkScreen = null })
+                networkScreen == "import" -> ImportScreen(api = networkApi, onBack = { networkScreen = null })
                 selected != null -> RecipeScreen(selected!!) { selected = null }
                 else -> Column(Modifier.padding(16.dp)) {
                     Text("Beyond Human Kitchen", style = MaterialTheme.typography.headlineMedium)
@@ -260,9 +261,8 @@ private fun PhotoModeMenu(value: String, onSelected: (String) -> Unit) {
 }
 
 @Composable
-private fun ChatScreen(onBack: () -> Unit) {
+internal fun ChatScreen(api: KitchenApi, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
-    val api = remember { KitchenApi(NetworkConfig.BASE_URL) }
     var input by remember { mutableStateOf("") }
     var messages by remember { mutableStateOf(listOf<ChatMessageDto>()) }
     var status by remember { mutableStateOf("") }
@@ -290,9 +290,8 @@ private fun ChatScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun ImportScreen(onBack: () -> Unit) {
+internal fun ImportScreen(api: KitchenApi, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
-    val api = remember { KitchenApi(NetworkConfig.BASE_URL) }
     var url by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("") }
     var draft by remember { mutableStateOf<ImportResponseDto?>(null) }
