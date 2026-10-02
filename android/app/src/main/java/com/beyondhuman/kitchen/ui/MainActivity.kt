@@ -7,7 +7,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -39,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.beyondhuman.kitchen.data.Recipe
 import com.beyondhuman.kitchen.data.RecipeRepository
@@ -79,13 +79,21 @@ fun KitchenApp(repo: RecipeRepository, sharedText: String, sharedUris: List<Uri>
     var selected by remember { mutableStateOf<Recipe?>(null) }
     var allRecipes by remember { mutableStateOf(emptyList<Recipe>()) }
     var results by remember { mutableStateOf(emptyList<Recipe>()) }
+    var searchError by remember { mutableStateOf<String?>(null) }
     var categoryMenuExpanded by remember { mutableStateOf(false) }
     var showVision by remember { mutableStateOf(sharedUris.isNotEmpty()) }
     var confirmedVisionIngredients by remember { mutableStateOf(emptyList<String>()) }
     var networkScreen by remember { mutableStateOf<String?>(null) }
     val networkApi = remember { KitchenApi(NetworkConfig.BASE_URL) }
 
-    LaunchedEffect(Unit) { allRecipes = repo.all() }
+    LaunchedEffect(Unit) {
+        try {
+            allRecipes = repo.all()
+        } catch (error: Exception) {
+            allRecipes = emptyList()
+            searchError = "Unable to load recipe catalogue: ${error.message ?: "Unknown error"}"
+        }
+    }
 
     MaterialTheme {
         Surface(Modifier.fillMaxSize()) {
@@ -127,10 +135,33 @@ fun KitchenApp(repo: RecipeRepository, sharedText: String, sharedUris: List<Uri>
                         Text("Confirmed photo ingredients: " + confirmedVisionIngredients.joinToString(", "))
                     }
                     LaunchedEffect(query, pantry, selectedSection) {
-                        results = filterRecipesBySection(repo.search(query = query, ingredients = pantry.split(',')), selectedSection)
+                        searchError = null
+                        try {
+                            val ingredientList = pantry.split(',').map(String::trim).filter(String::isNotBlank)
+                            val matches = repo.search(query = query, ingredients = ingredientList)
+                            results = filterRecipesBySection(matches, selectedSection)
+                            if (results.isEmpty()) {
+                                searchError = "No recipes match your search."
+                            }
+                        } catch (error: Exception) {
+                            results = emptyList()
+                            searchError = "Unable to search recipes: ${error.message ?: "Unknown error"}"
+                        }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("${results.size} recipes", style = MaterialTheme.typography.labelLarge)
+                    if (searchError != null) {
+                        Text(
+                            text = searchError!!,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    } else {
+                        Text("${results.size} recipes", style = MaterialTheme.typography.labelLarge)
+                    }
+                    if (searchError == null && results.isEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text("No recipes found for this filter.")
+                    }
                     LazyColumn {
                         items(results, key = { it.id }) { recipe ->
                             ListItem(
@@ -306,8 +337,15 @@ internal fun ImportScreen(api: KitchenApi, onBack: () -> Unit) {
             status = "Importing…"
             scope.launch {
                 runCatching { withContext(Dispatchers.IO) { api.importUrl(url.trim()) } }
-                    .onSuccess { response -> draft = response; confirmed = false; status = if (response.requiresConfirmation) "Draft received. Review it before accepting." else "Import complete." }
-                    .onFailure { draft = null; status = "Import failed. Check the URL and backend connection." }
+                    .onSuccess { response ->
+                        draft = response
+                        confirmed = false
+                        status = if (response.requiresConfirmation) "Draft received. Review it before accepting." else "Import complete."
+                    }
+                    .onFailure { error ->
+                        draft = null
+                        status = error.message ?: "Import failed. Check the URL and backend connection."
+                    }
             }
         }) { Text("Fetch recipe") }
         if (status.isNotBlank()) { Spacer(Modifier.height(8.dp)); Text(status) }
