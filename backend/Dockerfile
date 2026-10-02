@@ -9,11 +9,12 @@ WORKDIR /app
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# The 424-recipe catalogue is restored from the committed transport chunks
-# because the generated JSON is intentionally not tracked in git.
+COPY backend/app ./app
 COPY data/catalogue_payload ./data/catalogue_payload
 COPY scripts/restore_catalogue.py ./scripts/restore_catalogue.py
-RUN python scripts/restore_catalogue.py
+RUN python scripts/restore_catalogue.py \
+    && cp backend/app/recipes_424.json app/recipes_424.json \
+    && rm -rf backend data scripts
 
 RUN useradd --create-home --uid 10001 appuser
 
