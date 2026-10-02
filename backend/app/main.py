@@ -3,7 +3,6 @@ from __future__ import annotations
 import ipaddress
 import json
 import os
-import re
 import socket
 from typing import Any
 from urllib.parse import urljoin, urlparse
@@ -42,12 +41,7 @@ class ImportRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     url: HttpUrl
 
-def _normalize_token(text: str) -> str:
-    """Normalize a text token: lowercase and remove punctuation."""
-    return re.sub(r'[^\w\s]', '', text.lower()).strip()
-
 def _search_haystack(recipe: dict[str, Any]) -> str:
-    """Build a normalized haystack for ingredient and keyword matching."""
     return " ".join([recipe.get("title", ""), recipe.get("description", ""), recipe.get("_section", ""), *recipe.get("shoppingList", [])]).lower()
 
 def _score_recipe(recipe: dict[str, Any], query: str, ingredients: list[str]) -> int:
@@ -58,10 +52,7 @@ def _score_recipe(recipe: dict[str, Any], query: str, ingredients: list[str]) ->
     if query and title == query.lower(): score += 1000
     if query and query.lower() in title: score += 300
     score += sum(20 for term in terms if term in haystack)
-    
-    # Normalize ingredient matching to handle case and punctuation variations
-    normalized_haystack = _normalize_token(haystack)
-    score += sum(100 for ingredient in ingredients if _normalize_token(ingredient) in normalized_haystack)
+    score += sum(100 for ingredient in ingredients if ingredient.lower() in haystack)
     return score
 
 @app.get("/health")
