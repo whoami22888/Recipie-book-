@@ -33,6 +33,46 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build production backend image
         run: docker build -f backend/Dockerfile -t beyond-human-kitchen-api:ci .
+      - name: Verify catalogue exists inside image
+        run: |
+          docker run --rm --entrypoint python beyond-human-kitchen-api:ci -c '
+          import json
+          from pathlib import Path
+          p = Path("/app/app/recipes_424.json")
+          assert p.is_file(), p
+          data = json.loads(p.read_text(encoding="utf-8"))
+          assert data["recipeCount"] == 424, data.get("recipeCount")
+          assert len(data["recipes"]) == 424, len(data["recipes"])
+          assert [r["sourceRecipeNumber"] for r in data["recipes"]] == list(range(1, 425))
+          print("IMAGE CATALOGUE PASS: 424 recipes present and ordered")
+          '
+      - name: Start backend container
+        run: |
+          set -euo pipefail
+          docker run -d --name beyond-human-kitchen-api-ci -p 18000:8000 beyond-human-kitchen-api:ci
+          cleanup() {
+            docker logs beyond-human-kitchen-api-ci || true
+            docker rm -f beyond-human-kitchen-api-ci || true
+          }
+          trap cleanup EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:18000/health > /tmp/health.json; then
+              break
+            fi
+            if ! docker inspect --format='{{.State.Running}}' beyond-human-kitchen-api-ci | grep -q true; then
+              echo "Container stopped before /health became available"
+              exit 1
+            fi
+            sleep 1
+          done
+          test -s /tmp/health.json
+          python - <<'PY'
+          import json
+          data = json.load(open("/tmp/health.json", encoding="utf-8"))
+          assert data == {"ok": True, "recipeCount": 424}, data
+          print("CONTAINER HEALTH PASS:", data)
+          PY
+          docker inspect --format='status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' beyond-human-kitchen-api-ci
 
   android:
     runs-on: ubuntu-latest
