@@ -2,6 +2,7 @@ name: Beyond Human Kitchen CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   catalogue:
@@ -26,6 +27,53 @@ jobs:
       - run: pip install -r backend/requirements.txt
       - run: pytest -q backend/tests
 
+  backend-container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production backend image
+        run: docker build -f backend/Dockerfile -t beyond-human-kitchen-api:ci .
+      - name: Verify catalogue exists inside image
+        run: |
+          docker run --rm --entrypoint python beyond-human-kitchen-api:ci -c '
+          import json
+          from pathlib import Path
+          p = Path("/app/app/recipes_424.json")
+          assert p.is_file(), p
+          data = json.loads(p.read_text(encoding="utf-8"))
+          assert data["recipeCount"] == 424, data.get("recipeCount")
+          assert len(data["recipes"]) == 424, len(data["recipes"])
+          assert [r["sourceRecipeNumber"] for r in data["recipes"]] == list(range(1, 425))
+          print("IMAGE CATALOGUE PASS: 424 recipes present and ordered")
+          '
+      - name: Start backend container
+        run: |
+          set -euo pipefail
+          docker run -d --name beyond-human-kitchen-api-ci -p 18000:8000 beyond-human-kitchen-api:ci
+          cleanup() {
+            docker logs beyond-human-kitchen-api-ci || true
+            docker rm -f beyond-human-kitchen-api-ci || true
+          }
+          trap cleanup EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:18000/health > /tmp/health.json; then
+              break
+            fi
+            if ! docker inspect --format='{{.State.Running}}' beyond-human-kitchen-api-ci | grep -q true; then
+              echo "Container stopped before /health became available"
+              exit 1
+            fi
+            sleep 1
+          done
+          test -s /tmp/health.json
+          python - <<'PY'
+          import json
+          data = json.load(open("/tmp/health.json", encoding="utf-8"))
+          assert data == {"ok": True, "recipeCount": 424}, data
+          print("CONTAINER HEALTH PASS:", data)
+          PY
+          docker inspect --format='status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' beyond-human-kitchen-api-ci
+
   android:
     runs-on: ubuntu-latest
     steps:
@@ -48,6 +96,45 @@ jobs:
         working-directory: android
 
 
+  production-smoke:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python scripts/restore_catalogue.py
+      - run: pip install httpx==0.28.1
+      - name: Require production configuration
+        env:
+          PRODUCTION_BASE_URL: ${{ secrets.PRODUCTION_BASE_URL }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+        run: |
+          test -n "$PRODUCTION_BASE_URL"
+          test -n "$AI_API_KEY"
+          test -n "$AI_MODEL"
+          case "$PRODUCTION_BASE_URL" in
+            https://*) ;;
+            *) echo "PRODUCTION_BASE_URL must use HTTPS"; exit 1 ;;
+          esac
+      - name: Verify deployed production service
+        env:
+          PRODUCTION_BASE_URL: ${{ secrets.PRODUCTION_BASE_URL }}
+        run: python scripts/verify_production.py
+      - name: Build release against verified production endpoint
+        env:
+          BACKEND_BASE_URL: ${{ secrets.PRODUCTION_BASE_URL }}
+        run: |
+          gradle assembleRelease -PBACKEND_BASE_URL="$BACKEND_BASE_URL"
+        working-directory: android
+      - name: Upload production release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: beyond-human-kitchen-production-release
+          path: android/app/build/outputs/apk/release/*.apk
   android-instrumented:
     runs-on: ubuntu-latest
     timeout-minutes: 35
