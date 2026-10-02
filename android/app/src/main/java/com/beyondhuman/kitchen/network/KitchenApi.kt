@@ -4,6 +4,8 @@ import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URI
 
@@ -26,12 +28,36 @@ class KitchenApi(private val baseUrl: String, private val json: Json = Json { ig
         connection.setRequestProperty("Content-Type", "application/json")
         connection.setRequestProperty("Accept", "application/json")
         connection.doOutput = true
-        connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-        val status = connection.responseCode
-        val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-        val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-        connection.disconnect()
-        if (status !in 200..299) error("Backend request failed: HTTP $status")
-        return json.decodeFromString(decoder, response)
+
+        try {
+            connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val response = stream?.bufferedReader()?.use(BufferedReader::readText).orEmpty()
+
+            if (status !in 200..299) {
+                val detail = parseErrorDetail(response)
+                error(detail.ifBlank { "Backend request failed: HTTP $status" })
+            }
+
+            return json.decodeFromString(decoder, response)
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun parseErrorDetail(response: String): String {
+        if (response.isBlank()) return ""
+        return try {
+            val parsed = Json.parseToJsonElement(response)
+            val detail = parsed.jsonObject["detail"]
+            when {
+                detail == null -> ""
+                detail is kotlinx.serialization.json.JsonPrimitive && detail.isString -> detail.content
+                else -> detail.toString()
+            }
+        } catch (_: Exception) {
+            response
+        }
     }
 }
