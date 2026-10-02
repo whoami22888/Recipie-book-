@@ -9,9 +9,13 @@ WORKDIR /app
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN useradd --create-home --uid 10001 appuser
+# The 424-recipe catalogue is restored from the committed transport chunks
+# because the generated JSON is intentionally not tracked in git.
+COPY data/catalogue_payload ./data/catalogue_payload
+COPY scripts/restore_catalogue.py ./scripts/restore_catalogue.py
+RUN python scripts/restore_catalogue.py
 
-COPY backend/app ./app
+RUN useradd --create-home --uid 10001 appuser
 
 USER appuser
 
