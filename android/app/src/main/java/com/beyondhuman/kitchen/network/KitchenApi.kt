@@ -4,8 +4,9 @@ import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URI
 
@@ -50,10 +51,11 @@ class KitchenApi(private val baseUrl: String, private val json: Json = Json { ig
         if (response.isBlank()) return ""
         return try {
             val parsed = Json.parseToJsonElement(response)
-            val detail = parsed.jsonObject["detail"]
+            val parsedObject = parsed as? JsonObject ?: return ""
+            val detail = parsedObject["detail"]
             when {
                 detail == null -> ""
-                detail is kotlinx.serialization.json.JsonPrimitive && detail.isString -> detail.content
+                detail is JsonPrimitive && detail.isString -> detail.content
                 else -> detail.toString()
             }
         } catch (_: Exception) {
